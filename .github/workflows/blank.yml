@@ -4,7 +4,11 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-  
+    inputs:
+      PACKAGE_NAME:
+        required: true
+        type: string
+
 jobs:
   binary-release:
     permissions:
