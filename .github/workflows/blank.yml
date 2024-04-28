@@ -6,65 +6,156 @@ on:
   workflow_dispatch:
   
 jobs:
-   build:
-    name: ${{ matrix.build }}
-    runs-on: ${{ matrix.os }}
+  binary-release:
+    permissions:
+      contents: write
+
     strategy:
+      fail-fast: false
       matrix:
-        build: [Linux, macOS, Windows]
         include:
-          - build: Linux
+          - arch-name: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            rust: nightly
             target: x86_64-unknown-linux-gnu
-          - build: macOS
-            os: macos-latest
-            rust: nightly
-            target: x86_64-apple-darwin
-          - build: Windows
+            cross: true
+            file-ext:
+
+          - arch-name: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            cross: true
+            file-ext:
+
+          - arch-name: x86_64-unknown-freebsd
+            os: ubuntu-latest
+            target: x86_64-unknown-freebsd
+            cross: true
+            file-ext:
+
+          - arch-name: x86_64-pc-windows-msvc
             os: windows-latest
-            rust: nightly-x86_64-msvc
             target: x86_64-pc-windows-msvc
+            cross: false
+            file-ext: .exe
+
+          - arch-name: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            cross: true
+            file-ext: .exe
+
+          - arch-name: x86_64-apple-darwin
+            os: macos-latest
+            target: x86_64-apple-darwin
+            cross: false
+            file-ext:
+
+          - arch-name: i686-unknown-linux-gnu
+            os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+            cross: true
+            file-ext:
+
+          - arch-name: i686-unknown-linux-musl
+            os: ubuntu-latest
+            target: i686-unknown-linux-musl
+            cross: true
+            file-ext:
+
+          - arch-name: i686-pc-windows-msvc
+            os: windows-latest
+            target: i686-pc-windows-msvc
+            cross: true
+            file-ext: .exe
+
+          - arch-name: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            file-ext:
+
+          - arch-name: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            cross: true
+            file-ext:
+
+          - arch-name: aarch64-apple-darwin
+            os: macos-latest
+            target: aarch64-apple-darwin
+            cross: true
+            file-ext:
+
+          - arch-name: armv7-unknown-linux-gnueabi
+            os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabi
+            cross: true
+            file-ext:
+
+          - arch-name: armv7-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            cross: true
+            file-ext:
+
+          - arch-name: armv7-unknown-linux-musleabi
+            os: ubuntu-latest
+            target: armv7-unknown-linux-musleabi
+            cross: true
+            file-ext:
+
+          - arch-name: armv7-unknown-linux-musleabihf
+            os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+            cross: true
+            file-ext:
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           repository: EAimTY/tuic
           ref: dev
-      - name: Install rust
+      - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
-          components: rustfmt, clippy
+          toolchain: nightly
           target: ${{ matrix.target }}
-      - name: Clean Windows # Workaround to resolve link error with C:\msys64\mingw64\bin\libclang.dll
+          override: true
+
+      - name: Get package version on Unix-like system
+        if: runner.os != 'Windows'
+        run: |
+          echo "version=$(sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml)" >> $GITHUB_ENV
+          echo "prerelease=$((sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml | grep -qF '-') && echo "true" || echo "false")" >> $GITHUB_ENV
+
+      - name: Get package version on Windows
         if: runner.os == 'Windows'
         run: |
-          Remove-Item -LiteralPath "C:\msys64\" -Force -Recurse
-          choco install llvm -y          
-      - name: Build binary
+          echo "version=$(Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value })" >> $env:GITHUB_ENV
+          echo "prerelease=$((Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-String -Quiet '-') && echo "false" || echo "true")" >> $env:GITHUB_ENV
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release -p ${{ inputs.PACKAGE_NAME }} --target ${{ matrix.target }}
+
+      - name: Move binaries
         run: |
-          cd tuic-server
-          cargo build --verbose --release --target ${{ matrix.target }} && cd ..
-          cd tuic-client
-          cargo build --verbose --release --target ${{ matrix.target }} && cd ..
-        env:
-          RUST_BACKTRACE: 1
-      - name: Build archive
-        shell: bash
+          mkdir artifacts/
+          mv target/${{ matrix.target }}/release/${{ inputs.PACKAGE_NAME }}${{ matrix.file-ext }} artifacts/${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
+
+      - name: Calculate SHA256
         run: |
-          mkdir archive
-          cd archive
-          if [ "${{ matrix.build }}" = "Windows" ]; then
-            cp "../tuic/target/${{ matrix.target }}/release/*.exe" ./
-          else
-            cp "../tuic/target/${{ matrix.target }}/release/tuic-server" ./
-            cp "../tuic/target/${{ matrix.target }}/release/tuic-client" ./
-          fi          
+          cd artifacts/
+          openssl dgst -sha256 -r ${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }} > ${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}.sha256sum
       - name: Upload archive
         uses: actions/upload-artifact@v1
         with:
-          name: tuic-${{ matrix.build }}-${{matrix.target}}
-          path: archive/
+          name: ${{ inputs.PACKAGE_NAME }}-${{ env.version }}
+          path: artifacts/*
