@@ -152,10 +152,10 @@ jobs:
       - name: Move binaries
         run: |
           mkdir artifacts/
-          mv target/${{ matrix.target }}/release/tuic*${{ matrix.file-ext }} # artifacts/${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
+          mv target/${{ matrix.target }}/release/tuic*${{ matrix.file-ext }} ./artifacts/
 
       - name: Upload archive
         uses: actions/upload-artifact@v1
         with:
           name: ${{ inputs.PACKAGE_NAME }}-${{ env.version }}
-          path: artifacts/*
+          path: ./artifacts/
