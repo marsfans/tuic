@@ -4,10 +4,10 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      PACKAGE_NAME:
-        required: true
-        type: string
+    # inputs:
+    #   PACKAGE_NAME:
+    #     required: true
+    #     type: string
 
 jobs:
   binary-release:
@@ -130,34 +130,30 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - name: Get package version on Unix-like system
-        if: runner.os != 'Windows'
-        run: |
-          echo "version=$(sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml)" >> $GITHUB_ENV
-          echo "prerelease=$((sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml | grep -qF '-') && echo "true" || echo "false")" >> $GITHUB_ENV
+      # - name: Get package version on Unix-like system
+      #   if: runner.os != 'Windows'
+      #   run: |
+      #     echo "version=$(sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml)" >> $GITHUB_ENV
+      #     echo "prerelease=$((sed -rn 's/^version = \"(.*)\"/\1/p' ${{ inputs.PACKAGE_NAME }}/Cargo.toml | grep -qF '-') && echo "true" || echo "false")" >> $GITHUB_ENV
 
-      - name: Get package version on Windows
-        if: runner.os == 'Windows'
-        run: |
-          echo "version=$(Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value })" >> $env:GITHUB_ENV
-          echo "prerelease=$((Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-String -Quiet '-') && echo "false" || echo "true")" >> $env:GITHUB_ENV
+      # - name: Get package version on Windows
+      #   if: runner.os == 'Windows'
+      #   run: |
+      #     echo "version=$(Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value })" >> $env:GITHUB_ENV
+      #     echo "prerelease=$((Get-Content ${{ inputs.PACKAGE_NAME }}/Cargo.toml | Select-String -Pattern '^version = \"(.*)\"' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-String -Quiet '-') && echo "false" || echo "true")" >> $env:GITHUB_ENV
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           use-cross: ${{ matrix.cross }}
           command: build
-          args: --release -p ${{ inputs.PACKAGE_NAME }} --target ${{ matrix.target }}
+          args: --release --target ${{ matrix.target }} # -p ${{ inputs.PACKAGE_NAME }} 
 
       - name: Move binaries
         run: |
           mkdir artifacts/
-          mv target/${{ matrix.target }}/release/${{ inputs.PACKAGE_NAME }}${{ matrix.file-ext }} artifacts/${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
+          mv target/${{ matrix.target }}/release/tuic*${{ matrix.file-ext }} # artifacts/${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
 
-      - name: Calculate SHA256
-        run: |
-          cd artifacts/
-          openssl dgst -sha256 -r ${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }} > ${{ inputs.PACKAGE_NAME }}-${{ env.version }}-${{ matrix.arch-name }}${{ matrix.file-ext }}.sha256sum
       - name: Upload archive
         uses: actions/upload-artifact@v1
         with:
