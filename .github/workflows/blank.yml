@@ -115,7 +115,8 @@ jobs:
             file-ext:
 
     runs-on: ${{ matrix.os }}
-
+    env:
+      version: '1.0.0'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -152,10 +153,11 @@ jobs:
       - name: Move binaries
         run: |
           mkdir artifacts/
-          mv target/${{ matrix.target }}/release/tuic*${{ matrix.file-ext }} ./artifacts/
+          mv target/${{ matrix.target }}/release/tuic-server${{ matrix.file-ext }} ./artifacts/
+          mv target/${{ matrix.target }}/release/tuic-client${{ matrix.file-ext }} ./artifacts/
 
       - name: Upload archive
         uses: actions/upload-artifact@v1
         with:
-          name: ${{ inputs.PACKAGE_NAME }}-${{ env.version }}
+          name: tuic-${{ matrix.target }}-${{ env.version }}
           path: ./artifacts/
