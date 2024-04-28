@@ -58,11 +58,10 @@ jobs:
           mkdir archive
           cd archive
           if [ "${{ matrix.build }}" = "Windows" ]; then
-            cp "../tuic-server/target/${{ matrix.target }}/release/*.exe" ./
-            cp "../tuic-client/target/${{ matrix.target }}/release/*.exe" ./
+            cp "../tuic/target/${{ matrix.target }}/release/*.exe" ./
           else
-            cp "../tuic-server/target/${{ matrix.target }}/release/tuic-server" ./
-            cp "../tuic-client/target/${{ matrix.target }}/release/tuic-client" ./
+            cp "../tuic/target/${{ matrix.target }}/release/tuic-server" ./
+            cp "../tuic/target/${{ matrix.target }}/release/tuic-client" ./
           fi          
       - name: Upload archive
         uses: actions/upload-artifact@v1
