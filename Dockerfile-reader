@@ -6,4 +6,4 @@ RUN apt-get update && \
     wget -O reader.jar https://github.com/hectorqin/reader/releases/download/v3.2.8/reader-pro-3.2.8.jar
 
 # 运行JAR文件
-CMD ["java", "-jar", "reader.jar","--spring.profiles.active=prod","--reader.app.secure=true",--reader.app.secureKey=134679,"--reader.app.inviteCode=1111"]
+CMD ["java", "-jar", "reader.jar", "--spring.profiles.active=prod", "--reader.app.secure=true", "--reader.app.secureKey=134679", "--reader.app.inviteCode=1111"]
