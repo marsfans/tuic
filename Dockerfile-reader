@@ -1,0 +1,9 @@
+# 使用官方的Java 11基础镜像
+FROM openjdk:11-jre-slim
+# 下载JAR文件
+RUN apt-get update && \
+    apt-get install -y wget && \
+    wget -O reader.jar https://github.com/hectorqin/reader/releases/download/v3.2.8/reader-pro-3.2.8.jar
+
+# 运行JAR文件
+CMD ["java", "-jar", "reader.jar"]
